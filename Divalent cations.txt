@@ -1,0 +1,200 @@
+
+
+program Ca
+
+implicit none
+
+real(8):: x(3),en(3),l,Nav,Nsp,Calg,Rg,T,pi,dx,dy,dz,d,rCOO,lx,rION,H,H0,dd,eta,G,Gt,Cion,dd2,xx(3),k1,k2,af,Gmax,Cmax
+    real(8),allocatable:: r(:,:),rr(:,:)
+    integer:: i,j,Nfs,Nion,st,j2,kk,kk0
+    logical:: pr,vez
+    real(8):: s
+
+rION=0.100d-9
+k1=3.23
+k2=80.65
+af=0.0062
+Gmax=exp(11.34)
+
+    Nfs=5d4
+    Nav=6.022d23
+    Nsp=2.6d-3
+    Calg=2d0
+    Rg=8.314
+    T=298.
+    rCOO=0.280d-9
+
+    allocate(r(Nfs,3))
+Cion=0.
+Cmax=0.010
+open(22,file='Ca.txt')
+do while ( Cion <= Cmax )
+
+    en = 1
+    pi = atan(1d0)*4d0
+    l = (Nfs/(Nav*Nsp*Calg*1d4))**0.33333d0
+    print*,'l: ',l
+    lx=l-2*rCOO
+
+    Nion=int(1d4*Cion*l**3*Nav)
+    print*,'Nfs:',Nfs
+    print*,'Nion:',Nion
+
+    allocate(rr(Nion,3))
+
+    call random_number(x)
+    r(1,:)=x*lx-lx/2*en
+    d = 0
+    do i = 2, Nfs
+        pr=.true.
+        do while (pr)
+            call random_number(x)
+            r(i,:)=x*lx-lx/2*en
+            pr=.false.
+            do j = 1, i-1
+                dx = abs(r(i,1)-r(j,1))
+                    if (dx > l/2) dx = abs(dx-l)
+                dy = abs(r(i,2)-r(j,2))
+                    if (dy > l/2) dy = abs(dy-l)
+                dz = abs(r(i,3)-r(j,3))
+                    if (dz > l/2) dz = abs(dz-l)
+                d = sqrt(dy**2+dx**2+dz**2)
+                    if (d < (2*rCOO)) pr =.true.
+            enddo
+        enddo
+    enddo
+
+open(101,file='fs.txt')
+do i=1, Nfs
+    write(101,*) r(i,:)
+    enddo
+    close(101)
+
+print*,'rION: ',rION
+print*,'rCOO-: ',rCOO
+call random_number(x)
+    rr(1,:)=x*lx-lx/2*en
+    d = 0
+    do i = 2, Nion
+        pr=.true.
+        do while (pr)
+            call random_number(x)
+            rr(i,:)=x*lx-lx/2*en
+            pr=.false.
+            do j = 1, i-1
+                dx = abs(rr(i,1)-rr(j,1))
+                    if (dx > l/2) dx = abs(dx-l)
+                dy = abs(rr(i,2)-rr(j,2))
+                    if (dy > l/2) dy = abs(dy-l)
+                dz = abs(rr(i,3)-rr(j,3))
+                    if (dz > l/2) dz = abs(dz-l)
+                d = sqrt(dy**2+dx**2+dz**2)
+                    if (d < (2*rION)) pr =.true.
+            enddo
+            if (pr .eqv. .false.) then
+            do j = 1, Nfs
+                dx = abs(rr(i,1)-r(j,1))
+                    if (dx > l/2) dx = abs(dx-l)
+                dy = abs(rr(i,2)-r(j,2))
+                    if (dy > l/2) dy = abs(dy-l)
+                dz = abs(rr(i,3)-r(j,3))
+                    if (dz > l/2) dz = abs(dz-l)
+                d = sqrt(dy**2+dx**2+dz**2)
+                    if (d < (rION+rCOO)) pr =.true.
+            enddo
+            endif
+        enddo
+    enddo
+
+!OD TU ZAMREZENJE:
+open(201,file='ioni.txt')
+
+open(69,file='z_ion.txt')
+open(71,file='z_fs1.txt')
+open(72,file='z_fs2.txt')
+
+do i=1, Nion
+    write(201,*) rr(i,:)
+    enddo
+    close(201)
+
+H0=rION+rCOO
+Gt=Gmax*exp(-af/(Cion))
+
+H=k1*H0*(1+(k2*Cion)**0.5)
+
+  s=0
+  st=0
+  do i=1,Nion
+    !!!!!!!!!!!!!!
+    vez=.false.
+    j=1
+    do while ( (vez .eqv. .false.) .and. (j<=Nfs) ) !vez!!!!!!!!!!!
+        dd=sqrt( (rr(i,1)-r(j,1))**2  +  (rr(i,2)-r(j,2))**2 + (rr(i,3)-r(j,3))**2 )
+
+
+        if (dd < H) then !a
+
+            j2=j+1
+            do while ( (vez .eqv. .false.) .and. (j2<=Nfs) )
+             dd2=sqrt( (rr(i,1)-r(j2,1))**2  +  (rr(i,2)-r(j2,2))**2 +(rr(i,3)-r(j2,3))**2 )
+             if (dd2<H) then
+                st=st+1
+                s=s+dd2+dd
+                vez=.true.
+                write(69,*) rr(i,:)
+                write(71,*) r(j,:)
+                write(72,*) r(j2,:)
+                !print*,'YES',st
+                r(j,1)=1d2*l
+                r(j,2)=1d2*l
+                r(j,3)=1d2*l
+                r(j2,1)=1d2*l
+                r(j2,2)=1d2*l
+                r(j2,3)=1d2*l
+
+
+             else
+                j2=j2+1
+!                call random_number(xx) !!korak iona
+!                r(j2,:)=r(j2,:)+en*xx*drr*5d0
+!                r(j2,1)=image(r(j2,1),0d0,l)
+!                r(j2,2)=image(r(j2,2),0d0,l)
+             endif
+            enddo
+
+        endif
+
+    j=j+1
+    end do !konec iskanja fs pri tem koraku iona
+
+   !!!!!!!!!!!
+  end do!i
+close(69)
+close(71)
+close(72)
+
+eta=float(st)/float(Nfs)*100
+G=(st)/(Nav*l**3)*Rg*T
+
+print*,'l:',l*1d9
+print*,'st:',st
+print*,'eta v %:',eta
+print*,'G v Pa:',G
+print*,'Gt v Pa:',Gt
+
+
+print*,'povp_vez v nm:', s/(2*st)*1d9
+print*,'H:', H*1d9
+
+write(22,*) Cion,G,Gt,H/H0,s/(2*st)*1d9, H*1d9
+
+deallocate(rr)
+!deallocate(r)
+Cion=Cion+Cmax/100.
+enddo
+close(22)
+
+end program Ca
+
+
